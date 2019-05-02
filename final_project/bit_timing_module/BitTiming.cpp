@@ -4,7 +4,6 @@ BitTimingModule::BitTimingModule(uint16_t tq_bit_rate, uint8_t tq_phase1, uint8_
                                     uint8_t sjw, InterruptIn* RxPin)
 {
     this->curr_st = SYNC_ST;
-    this->curr_st = curr_st;
     this->tq_bit_rate = tq_bit_rate;
     this->tq_phase1 = tq_phase1;
     this->tq_phase2 = tq_phase2;
@@ -27,14 +26,14 @@ void BitTimingModule::execute()
     uint16_t btm_counter = 0;
     uint16_t tseg1, tseg2;
     uint8_t st_debug = 0;
-    this->clock.attach(this, &BitTimingModule::clockISR, 1/(this->tq_bit_rate));
+    this->clock.attach(callback(this, &BitTimingModule::clockISR), 1.0/((float)this->tq_bit_rate));
 
     while(true)
     {
         sampling_point = false;
         writing_point = false;
 
-        switch (curr_st)
+        switch (this->curr_st)
         {                
             case SYNC_ST:
                 // Sync segment
@@ -44,21 +43,21 @@ void BitTimingModule::execute()
                 tseg1 = this->tq_phase1;
                 tseg2 = this->tq_phase2;
 
-                if (falling_edge)
+                if (this->falling_edge)
                 {
-                    falling_edge = false;
+                    this->falling_edge = false;
                 }
                 // add writing point
                 writing_point = true;
-                curr_st = P1_ST;
+                this->curr_st = P1_ST;
                 break;
             case P1_ST:
                 // Phase Segment 1
                 st_debug = 1;
 
-                if (falling_edge && tseg1 == this->tq_phase1)
+                if (this->falling_edge && tseg1 == this->tq_phase1)
                 {
-                    falling_edge = false;
+                    this->falling_edge = false;
                     int8_t e = min(this->sjw, btm_counter);
                     tseg1 += e;
                 }
@@ -68,23 +67,23 @@ void BitTimingModule::execute()
                     // pc.printf("p1->p2\r\n");
                     // add sampling point
                     sampling_point = true;
-                    curr_st = P2_ST;
+                    this->curr_st = P2_ST;
                 }
                 break;
             case P2_ST:
                 // Phase Segment 2
                 st_debug = 2;
                 
-                if (falling_edge && tseg2 == this->tq_phase2)
+                if (this->falling_edge && tseg2 == this->tq_phase2)
                 {
-                    falling_edge = false;
+                    this->falling_edge = false;
                     int8_t e = min(this->sjw, abs((btm_counter - tseg1) - tseg2));
                     tseg2 = tseg2 - e;
                 }
 
                 if(btm_counter == tseg1 + tseg2)
                 {
-                    curr_st = SYNC_ST;
+                    this->curr_st = SYNC_ST;
                 }
 
                 break;
@@ -96,8 +95,8 @@ void BitTimingModule::execute()
                 tseg1 = this->tq_phase1;
                 tseg2 = this->tq_phase2;
                 
-                falling_edge = false;
-                curr_st = P1_ST;
+                this->falling_edge = false;
+                this->curr_st = P1_ST;
                 break;
             default:
                 printf("Unrecognized state\r\n");
@@ -108,21 +107,21 @@ void BitTimingModule::execute()
         /* Plot parameters in Arduino IDE Serial Plotter format */
         for(int i = 0; i < 6; i++)
             printf("%d %d %d\n", st_debug, writing_point-2, sampling_point-4);
-        
-        this->exe.signal_wait(TQ_SIGNAL);
+            
+        shared_events.wait_any(TQ_SIGNAL);
     }
 
 }
 
 void BitTimingModule::clockISR()
 {
-    this->exe.signal_set(TQ_SIGNAL);
+    shared_events.set(TQ_SIGNAL);
 }
 
 void BitTimingModule::fallingEdgeISR()
 {
-    falling_edge = true;
+    this->falling_edge = true;
 
     if (this->idle)
-        curr_st = HS_ST;
+        this->curr_st = HS_ST;
 }

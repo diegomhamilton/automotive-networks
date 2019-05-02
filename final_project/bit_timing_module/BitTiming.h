@@ -19,10 +19,7 @@
 #ifndef BTM_H
 #define BTM_H
 
-#ifndef MBED_H
-    #define MBED_H
-    #include "mbed.h"
-#endif
+#include "mbed.h"
 
 #define TQ_SIGNAL 0x01
 
@@ -40,11 +37,12 @@ typedef enum
 
 /* Global variables */
 extern bool writing_point, sampling_point;
+extern EventFlags shared_events;
 
 class BitTimingModule {
     public:
         /* Public methods */
-        BitTimingModule(uint16_t tq_bit_rate, uint8_t tq_phase1, uint8_t tq_phase2, uint8_t sjw);
+        BitTimingModule(uint16_t tq_bit_rate, uint8_t tq_phase1, uint8_t tq_phase2, uint8_t sjw, InterruptIn* RxPin);
         void updateIdle(bool idle);
 
         /* Public atributes */
