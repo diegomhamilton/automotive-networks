@@ -1,20 +1,35 @@
+/* Final project for Automotive Networks Course at CIn, UFPE.
+ *
+ * Professor: Divanilson Campello.
+ * Teaching Assistants:
+ *  Paulo Freitas de Araújo Filho
+ *  Saulo Vinicius Ferreira Barreto
+ *  Nathan Martins Freire 
+ *
+ * Decoder Module for a CAN controller.
+ *
+ * Authors:
+ *  Diego Hamilton
+ *  Lucas Cavalcanti
+ * 
+ * Microcontroller: NUCLEO-STM32F303RE
+ * Developed with the ARM Mbed IDE. 
+ */
+
 #ifndef DECODER_H
 #define DECODER_H
 
-#ifndef MBED_H
-#define MBED_H
 #include "mbed.h"
-#endif
+#include "EventDefs.h"
 
 /* Frame Builder Machine States */
 typedef enum
 {
     RECEIVING_ST,
-    ERROR_HANDLER_ST,
+    ERROR_HANDLER_DEC_ST,
     /* RECEIVING states */
-    IDLE_ST,
+    IDLE_DEC_ST,
     SOF_ST,
-    BSF_ST,
     GET_ID1_ST,
     EVAL,
     GET_ID2_ST,
@@ -44,12 +59,23 @@ typedef enum
 } bsf_states_t;
 
 /* Global variables */
+#ifndef SHARED_EVENTS
+#define SHARED_EVENTS
+extern Timer timer; 
 extern EventFlags shared_events;
+#endif
 
 class Decoder
 {
     public:
+        Decoder();
     private:
+        /* Private methods */
+        void execute_bdf();                     // state machine of Bit De-Stuffing Module
+        void execute_fb();                      // state machine of Frame Builder Module
+        /* Private atributes */
+        Thread exe_bdf;                         // Bit De-Stuffing execution thread
+        Thread exe_fb;                          // Frame Builder execution thread
 };
 
 #endif
