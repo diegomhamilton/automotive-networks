@@ -126,7 +126,7 @@ void NaiveCRC(int* Data)
 
 	int Size2 = GetDataSize(In);
 
-	for (ZebraCounter = 0; ZebraCounter < (Size2 - 16); ZebraCounter++)
+	for (ZebraCounter = 0; ZebraCounter < (Size2 - 15); ZebraCounter++)
 	{
 
 		while (ZebraCounter < Size2 && In[ZebraCounter] != 1)
@@ -159,7 +159,7 @@ int UnCRC(int* Data)
 	In[Size + 15] = -1;
 	Out[15] = -1;
 
-	for (ZebraCounter = 0; ZebraCounter < (Size2 - 16); ZebraCounter++)
+	for (ZebraCounter = 0; ZebraCounter < (Size2 - 15); ZebraCounter++)
 	{
 
 		while (ZebraCounter < Size2 && In[ZebraCounter] != 1)

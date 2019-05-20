@@ -27,6 +27,9 @@ int RepBitCounter = 0;
 bool Sending = false;
 bool repeat_frame = false;
 int sent_Bit = 1;
+bool WhenACK = false;
+int ActiveErrorFrame[15] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, -1};
+int PassiveErrorFrame[15] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1, -1};
 
 int decoder_step(struct Frame* Fr, int Bit) {
     // Execution time ~= 10us
@@ -41,13 +44,12 @@ int decoder_step(struct Frame* Fr, int Bit) {
     
     int ErrorState = Bit; // 3 for stuff error, 4 for form error, 5 for CRC error, 6 for Ack Error, -1 = Frame End, -2 = IFS End.
 	int Auxil;
-	
-    printf("st = %d, sz = %d\r\n", State, StateSize);
-
+//	 printf("st = %d\r\n", State);
+    if (DEBUG_CODE) printf("st = %d, sz = %d\r\n", State, StateSize);
     if (bus_idle == true) {
-        printf("initializing\r\n");
+        //  printf("in\r\n");
         //bus_idle, reseta tudo e prepara pra ler frame.
-        if (Bit == '0')
+        if (Bit == 0)
         {
             LastBit = 0;
             BufferPos = 0;
@@ -162,12 +164,19 @@ int decoder_step(struct Frame* Fr, int Bit) {
                     else
                     {
                         State = 9;
-                        StateSize = (Fr->DLC) * 8;
+                        StateSize = (Fr->DLC > 8) ? 64 : (Fr->DLC) * 8;
                     }
                     BufferPos = 0;
                     break;
                 case 9: //DATA
-                    BufferEatData(ReadBuffer, Fr->Data, Fr->DLC);
+                    if (Fr->DLC > 8) {
+                        BufferEatData(ReadBuffer, Fr->Data, 8);
+                    }
+                    else
+                    {
+                        BufferEatData(ReadBuffer, Fr->Data, Fr->DLC);
+                    }
+                    
                     State = 10;
                     StateSize = 15;
                     BufferPos = 0;
@@ -176,7 +185,7 @@ int decoder_step(struct Frame* Fr, int Bit) {
                     CRCBuild[CRCBuildSize] = -1;
                     ErrorState = UnCRC(CRCBuild);
                     if (ErrorState != 0)
-                        ErrorState = 3;
+                        ErrorState = 5;
                     else
                         ErrorState = Bit;
 
@@ -186,6 +195,8 @@ int decoder_step(struct Frame* Fr, int Bit) {
                     break;
                 case 11: //CRC Del, FORM ERROR se for 0?
                     State = 12;
+                    if (!Sending)
+                        WhenACK = true;
                     StateSize = 1;
                     Auxil = BufferEatInt(ReadBuffer, 1);
 
@@ -207,33 +218,41 @@ int decoder_step(struct Frame* Fr, int Bit) {
 
                 default:  //State 13+, aproveitado pra retornar valor negativo se frame e IFS terminaram.
                     StateSize = 1;
-                    Auxil = BufferEatInt(ReadBuffer, 1);
-                    BufferPos = 0;
-                    if (State >= 20) 
-                    {
-                        ErrorState = -1; //FRAME END, n�o acontecem mais erros.
-                        if (Auxil == 1 && State>20)
-                        {
-                            IFS++;
-                            if (IFS >= 3)
-                                ErrorState = -2; //IFS END, j� pode receber novas frames!
+					Auxil = BufferEatInt(ReadBuffer, 1);
+					BufferPos = 0;
+					if (State >= 20) 
+					{
+						ErrorState = -1; //FRAME END, não acontecem mais erros.
+						if (Auxil == 1 && State>20)
+						{
+							IFS++;
+							if (IFS >= 3) {
+								ErrorState = -2; //IFS END, já pode receber novas frames!
+                                bus_idle = true;
+                                if (DEBUG_CODE) printf("idle!\r\n");
+                            }
                         }
-                        else
-                            IFS = 0;
-                    }
-                    if ((Auxil - 0) == 0 && State < 20)
-                    {
-                            ErrorState = 4; //FORM ERROR poss�vel.
-                    }
-                    State = State + 1;
-                    break;
+						else
+						{
+							IFS = 0;
+							if (Auxil == 0 && (State > 20 && State <= 23))
+								ErrorState = 7; //OVERLOAD!
+
+						}
+					}
+					if (Auxil == 0 && State < 20)
+					{
+							ErrorState = 4; //FORM ERROR possível.
+					}
+					State += 1;
+					break;
                 }
             }
     }
 
     return (ErrorState); 
     /* Retorna -1 se a frame acabou, -2 se o IFS acabou, -3 pra ERROR FRAME END, -4 para arbitração perdida
-    2 para BIT ERROR, 3 pra STUFF ERROR, 4 pra FORM ERROR, 5 pra CRC ERROR, 6 pra ACK ERROR
+    2 para BIT ERROR, 3 pra STUFF ERROR, 4 pra FORM ERROR, 5 pra CRC ERROR, 6 pra ACK ERROR, 7 para OVERLOAD FRAME,
     outrora retorna o bit. */
 }
 
@@ -286,6 +305,7 @@ void frame_interpreter(struct Frame Fr, int* EncFrame) {
 	else
 		Type = Fr.RTR + (2 * Fr.IDE);
 
+	if (DEBUG_CODE) printf("Type = %d\r\n", Type);
 	switch (Type)
 	{
 	case 0: //Data, Normal
@@ -390,6 +410,76 @@ int* bit_stf(int FrameS[200])
 	return Stuffed;
 }
 
-void error_handler_exe() {
+void error_handler_exe(int Flag) {
+    static int TEC = 0;
+    static int REC = 0;
 
+    if (DEBUG_CODE) printf("Error: %d\r\n", Flag);
+}
+
+//Retorna -3 se a frame acaba.
+int error_step(int Bit, int Flag) {
+	static int BeaverCounter = 0;  //Inicializar em 0 antes de chamar error frame.
+	static int ErrorStepState = 0; //Também.
+	int Returner;          //Retorna -1 após 6+ zeros consecutivos, Retorna -3 quando acaba a errorframe, retorna 7 quando ocorre overload, retorna -2 quando acaba o IFS.
+
+	if (Flag == 1)
+	{
+		ErrorStepState = 0;
+		BeaverCounter = 0;
+	}
+
+	Returner = Bit;
+	
+	switch (ErrorStepState)
+	{
+	case 0:
+		if (Bit == 0)
+			BeaverCounter++;
+		else if (Bit == 1)
+		{
+			if (BeaverCounter >= 6)
+			{
+				ErrorStepState = 1;
+				BeaverCounter = 1;
+				Returner = -1;
+			}
+			else
+				BeaverCounter = 0;
+		}
+		break;
+	case 1:
+		if (Bit == 1)
+		{
+			BeaverCounter++;
+			if (BeaverCounter >= 8)
+			{
+				BeaverCounter = 0;
+				Returner = -3;
+				ErrorStepState = 2;
+			}
+		}
+		break;
+	case 2: //IFS
+		BeaverCounter++;
+		if (Bit == 0)
+		{
+			Returner = 7;
+			ErrorStepState = 0;
+			BeaverCounter = 0;
+		}
+		if (BeaverCounter >= 3 && Bit == 1)
+		{
+			ErrorStepState = 3;
+			BeaverCounter = 0;
+			Returner = -2;
+            bus_idle = true;
+		}
+		break;
+	default:
+        bus_idle = true;
+		Returner = -2;
+        break;
+	}
+	return Returner;
 }

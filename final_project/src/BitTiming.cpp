@@ -17,13 +17,15 @@ uint8_t btm_exe(bool bus_idle)
 
     if (bus_idle && falling_edge)
     {
-        curr_st = SYNC_ST;
+//        printf("hs\r\n");
+        curr_st = HS_ST;
     }
 
     switch (curr_st)
     {                
         case SYNC_ST:
             // Sync segment
+//            printf("sync\r\n");
             st_debug = 0;
             
             btm_counter = 0;
@@ -38,7 +40,8 @@ uint8_t btm_exe(bool bus_idle)
         case P1_ST:
             // Phase Segment 1
             st_debug = 1;
-
+//            printf("p1\r\n");
+            
             if (falling_edge && tseg1 == TQ_PHASE1)
             {
                 falling_edge = false;
@@ -55,6 +58,7 @@ uint8_t btm_exe(bool bus_idle)
         case P2_ST:
             // Phase Segment 2
             st_debug = 2;
+//            printf("p2\r\n");
             
             if (falling_edge && tseg2 == TQ_PHASE2)
             {

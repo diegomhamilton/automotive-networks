@@ -1,5 +1,6 @@
 #ifndef USER_FUNCTIONS_H
 #define USER_FUNCTIONS_H
+#define DEBUG_CODE false
 
 struct Frame
 {
