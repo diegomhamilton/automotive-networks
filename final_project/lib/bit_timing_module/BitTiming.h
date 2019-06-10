@@ -20,8 +20,7 @@
 #define BTM_H
 
 #include "mbed.h"
-
-#define TQ_SIGNAL 0x01
+#include "EventDefs.h"
 
 /* Macros */
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -36,8 +35,12 @@ typedef enum
 } btm_states_t;
 
 /* Global variables */
-extern bool writing_point, sampling_point;
+// extern bool writing_point, sampling_point;
+#ifndef SHARED_EVENTS
+#define SHARED_EVENTS
+extern Timer timer; 
 extern EventFlags shared_events;
+#endif
 
 class BitTimingModule {
     public:
