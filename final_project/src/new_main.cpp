@@ -71,7 +71,6 @@ void main() {
         switch (btm_command)
         {
             case WRITING_P:
-            	ts1 = t.read_us();
                 if (WhenACK) {
                     can_tx = 0;
                 }
@@ -106,11 +105,8 @@ void main() {
                         Sending = false;
                     }
                 }
-            	ts2 = t.read_us();
-//            	printf("wr, t = %ld\r\n", ts2-ts1);
                 break;
             case SAMPLING_P:
-            	ts1 = t.read_us();
                 Bit = can_rx.read();
 
                 if (error_state || waiting_ifs) {
@@ -136,9 +132,9 @@ void main() {
                     }
                 }
                 else {
-//                    ts1 = t.read_us();
+                    ts1 = t.read_us();
                     Cat = decoder_step(&Fr, Bit);
-//                    ts2 = t.read_us();
+                    ts2 = t.read_us();
                     curr_rx_bit += 1;
                     if (DEBUG_CODE) printf("rcvd %d, cat %d\r\n\n", Bit, Cat);
 
@@ -151,7 +147,6 @@ void main() {
                         bus_idle = false;
                     }
                     else if (Cat == -2) {
-                        tq_clock.detach();
                         printf("Last Frame Decoded:\r\n");
                         printf("ID1 = 0x%x\r\n", Fr.ID1);
                         printf("ID2 = 0x%x\r\n", Fr.ID2);
@@ -160,25 +155,21 @@ void main() {
                         printf("SRR = %d\r\n", Fr.SRR);
                         printf("DLC = %d\r\n", Fr.DLC);
                         printf("DATA = ");
-						for (int i = 0; i < 2 * Fr.DLC; i += 1) {
-						 printf("%c", Fr.Data[i]);
-						}
-						printf("\r\n");
-						printf("CRC = ");
-						for (int i = 0; i < sizeof(Fr.user_CRC)/sizeof(int); i += 1) {
-						 printf("%d", Fr.user_CRC[i]);
-						}
+                        for (int i = 0; i < 2 * Fr.DLC; i += 1) {
+                            printf("%c", Fr.Data[i]);
+                        }
+                        // printf("\r\n");
+                        // printf("CRC = ");
+                        // for (int i = 0; i < sizeof(Fr.user_CRC)/sizeof(int); i += 1) {
+                        //     printf("%d", Fr.user_CRC[i]);
+                        // }
                         printf("\r\n\n");
                         curr_rx_bit = 0;
                         bus_idle = true;
                         error_state = false;
-                        
-    					tq_clock.attach(&tickISR, 1.0/((double)TQ_BITRATE*(TQ_PHASE1 + TQ_PHASE2)));
                     }
                 }
                 
-                ts2 = t.read_us();
-//            	printf("wr, t = %ld\r\n", ts2-ts1);
                 break;
             case NOTHING:
             	if (msg_available && bus_idle)

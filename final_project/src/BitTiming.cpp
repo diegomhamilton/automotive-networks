@@ -85,7 +85,7 @@ uint8_t btm_exe(bool bus_idle)
             curr_st = P1_ST;
             break;
         default:
-            printf("Unrecognized state\r\n");
+//            printf("Unrecognized state\r\n");
             break;
     }
     btm_counter++;

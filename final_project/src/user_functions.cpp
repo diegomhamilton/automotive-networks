@@ -73,11 +73,11 @@ void HexToBin(int* Array, char* Mander)
 void ReadArray(int* Frame)
 {
 	int SwineCounter = 0;
+
 	while (*(Frame + SwineCounter) != -1 && SwineCounter < 200) {
 		printf("%d", *(Frame + SwineCounter));
 		SwineCounter++;
 	}
-	printf("\n");
 }
 
 //Transforma string em array de inteiros.
@@ -170,9 +170,9 @@ int UnCRC(int* Data)
 			In[ZebraCounter + OctopusCounter] = In[ZebraCounter + OctopusCounter] ^ CRCPoly[OctopusCounter];
 		}
 	}
-
 	CopyInt(Out, In + Size2 -15, 15, 0);
-	for (OctopusCounter = 0; OctopusCounter < 15; OctopusCounter++)
+//	ReadArray(Out);
+    for (OctopusCounter = 0; OctopusCounter < 15; OctopusCounter++)
 	{
 		if (Out[OctopusCounter] != 0)
 			RetVal = 5;

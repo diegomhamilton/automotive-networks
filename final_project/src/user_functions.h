@@ -1,6 +1,8 @@
 #ifndef USER_FUNCTIONS_H
 #define USER_FUNCTIONS_H
+// #define DEBUG_CODE true
 #define DEBUG_CODE false
+#include "mbed.h"
 
 struct Frame
 {
@@ -11,7 +13,7 @@ struct Frame
 	int SRR;
 	char Data[16];  // every two char (HEX char) corresponds to one byte
 	int DLC;
-	int user_CRC;
+	int user_CRC[15];
 	bool ACK;
 };
 
